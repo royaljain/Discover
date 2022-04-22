@@ -20,7 +20,7 @@ app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
 app.get('/', (req, res) => {
-  sendAck(res, "Welcome to Discover Bot!");
+  sendAck(res, JSON.stringify({ "text": "Welcome to Discover Bot!"}));
 });
 
 app.post("/slack/events", async (req, res) => {
