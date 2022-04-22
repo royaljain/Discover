@@ -2,8 +2,6 @@ const fa = require('firebase-admin');
 
 require('dotenv').config()
 
-const serviceAccount = require('../firebase-service-account.json');
-
 fa.initializeApp({
  credential: fa.credential.cert({
   "projectId": process.env.FIREBASE_PROJECT_ID,
