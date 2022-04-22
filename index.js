@@ -1,6 +1,4 @@
 const express = require("express");
-//const dotenv = require('dotenv')
-//const request = require('request');
 const bodyParser = require('body-parser');
 const { WebClient, LogLevel } = require("@slack/web-api");
 const { nextStory, updatePreference } = require('./utils/firebase-util');
@@ -24,8 +22,6 @@ app.get('/', (req, res) => {
 });
 
 app.post("/slack/events", async (req, res) => {
-
-  console.log("Body Events", req.body)
 
   switch (req.body["type"]) {
     case "url_verification": {
@@ -52,9 +48,7 @@ app.post("/slack/events", async (req, res) => {
   }
 });
 
-
 app.post("/slack/commands", async (req, res) => {
-  console.log("Body Command", req.body)
   sendAck(res)
 
   switch (req.body["command"]) {
@@ -135,7 +129,6 @@ app.post("/slack/commands", async (req, res) => {
       break;
   }
 });
-
 
 app.post("/slack/actions", async (req, res) => {
 
