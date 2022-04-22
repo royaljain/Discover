@@ -19,6 +19,10 @@ const port = process.env.PORT || "8000";
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
+app.get('/', (req, res) => {
+  sendAck(res, "Welcome to Discover Bot!");
+});
+
 app.post("/slack/events", async (req, res) => {
 
   console.log("Body Events", req.body)
@@ -82,7 +86,7 @@ app.post("/slack/commands", async (req, res) => {
           });
         });
 
-        //await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         await client.chat.postMessage({
           channel: channelId,
