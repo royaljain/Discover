@@ -3,6 +3,8 @@ const bodyParser = require('body-parser');
 const { WebClient, LogLevel } = require("@slack/web-api");
 const { nextStory, updatePreference } = require('./utils/firebase-util');
 const { sendAck } = require('./utils/network-util');
+const { recursiveSearch } = require('./utils/utility-functions');
+
 const https = require('https');
 
 require('dotenv').config()
@@ -12,7 +14,7 @@ const client = new WebClient(process.env.SLACK_BOT_TOKEN, {
 });
 
 const app = express();
-const port = process.env.PORT || "8000";
+const port = process.env.PORT || "5000";
 
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
@@ -31,13 +33,15 @@ app.post("/slack/events", async (req, res) => {
     case "event_callback": {
       sendAck(res);
 
-      if ((req.body.event.bot_id && (req.body.event.bot_id == process.env.SLACK_BOT_ID)) || req.body.event.upload) {
+      const bot = recursiveSearch(req.body.event, "bot_id");
+
+      if ( (bot && bot == process.env.SLACK_BOT_ID) || req.body.event.upload) {
         break;
       }
 
       await client.chat.postMessage({
         channel: req.body["event"]["channel"],
-        text: "Hey, there"
+        text: "Hey, there. Discover a great story by typing /read"
       });
 
       break;
@@ -49,7 +53,7 @@ app.post("/slack/events", async (req, res) => {
 });
 
 app.post("/slack/commands", async (req, res) => {
-  sendAck(res)
+  sendAck(res, "Hold on, Finding a great story for you")
 
   switch (req.body["command"]) {
     case "/read": {
@@ -78,48 +82,46 @@ app.post("/slack/commands", async (req, res) => {
             title: `${name}.pdf`,
             file: stream
           });
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        await client.chat.postMessage({
-          channel: channelId,
-          blocks: [
-            {
-              "type": "section",
-              "text": {
-                "type": "mrkdwn",
-                "text": "Did you like the story? Let us know"
-              }
-            },
-            {
-              "block_id": "like_buttons",
-              "type": "actions",
-              "elements": [
-                {
-                  "action_id": "like_button",
-                  "type": "button",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "Liked It",
-                    "emoji": true
-                  },
-                  "value": story_id
-                },
-                {
-                  "action_id": "dislike_button",
-                  "type": "button",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "Not so much",
-                    "emoji": true
-                  },
-                  "value": story_id
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          await client.chat.postMessage({
+            channel: channelId,
+            blocks: [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Did you like the story? Let us know"
                 }
-              ]
-            }
-          ]
-        })
+              },
+              {
+                "block_id": "like_buttons",
+                "type": "actions",
+                "elements": [
+                  {
+                    "action_id": "like_button",
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "Liked It",
+                      "emoji": true
+                    },
+                    "value": story_id
+                  },
+                  {
+                    "action_id": "dislike_button",
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "Not so much",
+                      "emoji": true
+                    },
+                    "value": story_id
+                  }
+                ]
+              }
+            ]
+          })
+        });
 
       }
       break;
@@ -135,6 +137,8 @@ app.post("/slack/actions", async (req, res) => {
   const payload = JSON.parse(req.body.payload)
   const user_id = payload["user"]["id"];
   const story_id = payload["actions"][0]["value"];
+  const ts = payload["message"]["ts"];
+  const channel_id = payload["channel"]["id"];
 
   sendAck(res);
 
@@ -142,9 +146,35 @@ app.post("/slack/actions", async (req, res) => {
 
     case "like_button":
       updatePreference(user_id, story_id, "like");
+      await client.chat.update({
+        channel: channel_id,
+        ts: ts,
+        blocks: [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "Glad to hear. We'll keep on working to improve our content"
+            }
+        }]
+      });
+
       break;
     case "dislike_button":
       updatePreference(user_id, story_id, "dislike");
+      await client.chat.update({
+        channel: channel_id,
+        ts: ts,
+        blocks: [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "Got it. We'll keep this mind while recommending new stories!"
+            }
+        }]
+      });
+
       break;
     default:
       break;
