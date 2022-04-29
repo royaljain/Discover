@@ -73,8 +73,14 @@ async function addUser(user_id, user_access_token, team_id, team_name) {
   }  
 } 
 
+async function getToken(user_id) {
+
+  const user = await db.collection('User').doc(user_id).get()  
+  return  user.data()["access_token"]
+} 
 
 
 module.exports.nextStory = nextStory
 module.exports.updatePreference = updatePreference
 module.exports.addUser = addUser
+module.exports.getToken = getToken

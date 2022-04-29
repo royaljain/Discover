@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require('body-parser');
 const { WebClient, LogLevel } = require("@slack/web-api");
-const { nextStory, updatePreference, addUser } = require('./utils/firebase-util');
+const { nextStory, updatePreference, addUser, getToken } = require('./utils/firebase-util');
 const { sendAck } = require('./utils/network-util');
 const { recursiveSearch } = require('./utils/utility-functions');
 
@@ -9,9 +9,6 @@ const https = require('https');
 
 require('dotenv').config()
 
-const client = new WebClient(process.env.SLACK_BOT_TOKEN, {
-  logLevel: LogLevel.DEBUG
-});
 
 const app = express();
 const port = process.env.PORT || "5000";
@@ -24,8 +21,9 @@ app.get('/', (req, res) => {
 });
 
 app.get('/oauth-redirect', async (req, res) => {
+  
   const code = req.query.code
-  const response = await client.oauth.v2.access({
+  const response = await new WebClient().oauth.v2.access({
     client_id: process.env.CLIENT_ID,
     client_secret: process.env.CLIENT_SECRET,
     code: code
@@ -55,10 +53,15 @@ app.post("/slack/events", async (req, res) => {
 
       const bot = recursiveSearch(req.body.event, "bot_id");
 
-      if ( (bot && bot == process.env.SLACK_BOT_ID) || req.body.event.upload) {
+      if ( (bot || req.body.event.upload)) {
         break;
       }
-
+      
+      const access_token =  await getToken(req.body["event"]["user"])
+      const client = new WebClient(access_token, {
+        logLevel: LogLevel.DEBUG
+      });
+      
       await client.chat.postMessage({
         channel: req.body["event"]["channel"],
         text: "Hey, there. Discover a great story by typing /read"
@@ -80,6 +83,11 @@ app.post("/slack/commands", async (req, res) => {
 
       const channelId = req.body.channel_id;
       const userID = req.body.user_id
+
+      const access_token =  await getToken(userID)
+      const client = new WebClient(access_token, {
+        logLevel: LogLevel.DEBUG
+      });
 
       const storyData = await nextStory(userID)
 
@@ -162,6 +170,11 @@ app.post("/slack/actions", async (req, res) => {
   const channel_id = payload["channel"]["id"];
 
   sendAck(res);
+
+  const access_token =  await getToken(user_id)
+  const client = new WebClient(access_token, {
+    logLevel: LogLevel.DEBUG
+  });
 
   switch (payload["actions"][0]["action_id"]) {
 
