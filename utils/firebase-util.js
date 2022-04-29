@@ -70,6 +70,13 @@ async function addUser(user_id, user_access_token, team_id, team_name) {
       'team_name': team_name
     }
     user.set(user_data);
+  }else {
+    db.collection("User").doc(user_id).update({
+      'access_token': user_access_token,
+      'team_id': team_id,
+      'team_name': team_name,
+      'id': user_id
+    });
   }  
 } 
 
