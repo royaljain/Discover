@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require('body-parser');
 const { WebClient, LogLevel } = require("@slack/web-api");
-const { nextStory, updatePreference } = require('./utils/firebase-util');
+const { nextStory, updatePreference, addUser } = require('./utils/firebase-util');
 const { sendAck } = require('./utils/network-util');
 const { recursiveSearch } = require('./utils/utility-functions');
 
@@ -21,6 +21,26 @@ app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
 app.get('/', (req, res) => {
   sendAck(res, JSON.stringify({ "text": "Welcome to Discover Bot!"}));
+});
+
+app.get('/oauth-redirect', async (req, res) => {
+  const code = req.query.code
+  const response = await client.oauth.v2.access({
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET,
+    code: code
+  })
+
+  const user_id = response["authed_user"]["id"];
+  const user_access_token = response["authed_user"]["access_token"];
+  const team_id = response["team"]["id"];
+  const team_name = response["team"]["name"];
+
+  addUser(user_id, user_access_token, team_id, team_name);
+
+  res.setHeader('Content-Type', 'text/html');
+  res.send((`<h2>Installation completed successfully.</h2><p>Thank you for installing Discover App to your Slack team ${team_name} </p><p>You can now close this browser window and return to Slack to try out the new app.</p>`));
+
 });
 
 app.post("/slack/events", async (req, res) => {
@@ -80,7 +100,8 @@ app.post("/slack/commands", async (req, res) => {
             channels: channelId,
             initial_comment: `Here you go, hope you like our new story`,
             title: `${name}.pdf`,
-            file: stream
+            file: stream,
+            filetype: "pdf"
           });
           await new Promise(resolve => setTimeout(resolve, 5000));
           await client.chat.postMessage({

@@ -57,6 +57,24 @@ async function updatePreference(user_id, story_id, preference) {
     
 } 
 
+async function addUser(user_id, user_access_token, team_id, team_name) {
+
+  const user = await db.collection('User').doc(user_id).get()  
+  if(!user.exists){
+    const user = db.collection('User').doc(user_id);
+    user_data = {
+      'id': user_id,
+      'stories': {},
+      'access_token': user_access_token,
+      'team_id': team_id,
+      'team_name': team_name
+    }
+    user.set(user_data);
+  }  
+} 
+
+
 
 module.exports.nextStory = nextStory
 module.exports.updatePreference = updatePreference
+module.exports.addUser = addUser
